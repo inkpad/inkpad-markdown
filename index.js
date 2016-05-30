@@ -1,4 +1,5 @@
 var marked = require('marked');
+var yaml = require('js-yaml');
 
 marked.setOptions({
   gfm: true,
@@ -7,9 +8,30 @@ marked.setOptions({
   smartLists: true,
 });
 
+function extractMetadata(value) {
+  var rgx = /^\+\+\+\r?\n((?:.*\r?\n)*)\+\+\+/;
+  var metadataYaml = (value.match(rgx) || []).pop();
+  var metadata;
+
+  try {
+    metadata = yaml.safeLoad(metadataYaml);
+  } catch (error) {
+    metadata = {};
+  }
+
+  return {
+    metadata: metadata,
+    markdown: value.replace(rgx, ''),
+  };
+}
+
 function markdown(value) {
-  value = (value || '').replace(/\r\n/g, '\n');
-  return marked(value, { renderer: markdown.renderer });
+  var value = extractMetadata(value);
+  value.markdown = (value.markdown || '').replace(/\r\n/g, '\n');
+  value.html = marked(value.markdown, { renderer: markdown.renderer });
+  value.toString = function() { return value.html; };
+
+  return value;
 }
 
 markdown.renderer = new marked.Renderer();
